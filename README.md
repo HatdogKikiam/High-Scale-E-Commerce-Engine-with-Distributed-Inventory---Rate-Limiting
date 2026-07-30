@@ -152,6 +152,16 @@ OAUTH2_ACCESS_TOKEN=demo-token
 - Fault-injection controls at **`/status`** and **`/admin/faults`**
 - Local monitoring dashboard served from **`/dashboard.html`**
 
+### Inventory Drift Detection & Reconciliation
+
+If Redis `inventory:{productId}:available` and PostgreSQL `stock_quantity - reserved_quantity` ever diverge, follow these steps:
+
+- Detect: run a periodic job that scans products and compares `stock_quantity - reserved_quantity` against the Redis key; log or emit mismatches to the outbox.
+- Repair (best-effort): pause reservations, compute the authoritative value from Postgres, and write it back to Redis atomically (or via a maintenance script) while alerting operators.
+- Prevent: code paths that mutate stock update both Postgres and Redis in the same logical operation; worker and refund flows include compensating reverts on partial failures.
+
+This repository includes logic to revert Redis updates on partial failures in worker/refund flows; add a scheduled reconciliation job if you expect drift in production.
+
 ---
 
 ## ⌨️ Quick Commands

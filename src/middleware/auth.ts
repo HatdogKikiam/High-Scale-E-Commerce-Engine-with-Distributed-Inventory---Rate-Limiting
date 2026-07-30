@@ -8,6 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authRequired = process.env.AUTH_REQUIRED === "true" || process.env.AUTH_REQUIRED === "1";
   if (!authRequired) {
+    // When auth is disabled, continue without setting a user context
     return next();
   }
 
@@ -36,6 +37,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const hasValidBearerToken = configuredBearerToken ? bearerToken === configuredBearerToken : false;
 
   if (hasValidApiKey || hasValidBearerToken) {
+    // Attach a minimal user context. Prefer an explicit header if provided for testing/dev purposes.
+    const suppliedUser = getHeaderValue("x-user-id");
+    (req as any).user = { id: suppliedUser ?? "00000000-0000-0000-0000-000000000001" };
     return next();
   }
 

@@ -21,9 +21,13 @@ redis.call("DECRBY", key, quantity)
 return 1
 `;
 
-export async function reserveStock(productId: string, quantity: number, orderId: string): Promise<boolean> {
+export async function reserveStock(productId: string, quantity: number, orderId: string, userId?: string): Promise<boolean> {
   if (!productId || !orderId) {
     throw new AppError("Product ID and order ID are required", 400);
+  }
+
+  if (!userId) {
+    throw new AppError("Unauthorized: user is required", 401);
   }
 
   const inventoryKey = `inventory:${productId}:available`;
@@ -39,7 +43,7 @@ export async function reserveStock(productId: string, quantity: number, orderId:
     await client.query("BEGIN");
 
     const currentProduct = await client.query(
-      "SELECT id, stock_quantity, reserved_quantity FROM products WHERE id = $1 FOR UPDATE",
+      "SELECT id, stock_quantity, reserved_quantity, price FROM products WHERE id = $1 FOR UPDATE",
       [productId]
     );
 
@@ -61,14 +65,18 @@ export async function reserveStock(productId: string, quantity: number, orderId:
       [quantity, productId]
     );
 
+    // Compute pricing using the locked product row
+    const unitPrice = Number(currentProduct.rows[0].price ?? 0);
+    const totalAmount = unitPrice * quantity;
+
     await client.query(
-      "INSERT INTO orders (id, user_id, status, total_amount, expires_at) VALUES ($1, $2, 'pending', 0, NOW() + INTERVAL '15 minutes')",
-      [orderId, "00000000-0000-0000-0000-000000000001"]
+      "INSERT INTO orders (id, user_id, status, total_amount, expires_at) VALUES ($1, $2, 'pending', $3, NOW() + INTERVAL '15 minutes')",
+      [orderId, userId, totalAmount]
     );
 
     await client.query(
-      "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ($1, $2, $3, 0)",
-      [orderId, productId, quantity]
+      "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ($1, $2, $3, $4)",
+      [orderId, productId, quantity, unitPrice]
     );
 
     await client.query("COMMIT");

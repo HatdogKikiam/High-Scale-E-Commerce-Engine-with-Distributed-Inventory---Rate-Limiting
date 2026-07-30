@@ -115,7 +115,12 @@ app.post("/products/:productId/reserve", validateBody(reserveSchema), async (req
       logger.info({ traceId: req.traceId, orderId, quantity }, "Processing inventory reservation");
 
       const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
-      const reserved = await applyFaultInjection(async () => reserveStock(productId, quantity, orderId));
+      const userId = (req as any).user?.id as string | undefined;
+      if (!userId) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const reserved = await applyFaultInjection(async () => reserveStock(productId, quantity, orderId, userId));
       if (!reserved) {
         throw new AppError("Insufficient stock", 409);
       }

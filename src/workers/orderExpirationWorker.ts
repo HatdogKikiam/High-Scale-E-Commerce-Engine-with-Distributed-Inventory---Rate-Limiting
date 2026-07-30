@@ -41,12 +41,27 @@ export const orderExpirationWorker = new Worker(
       }
 
       const itemsResult = await client.query("SELECT product_id, quantity FROM order_items WHERE order_id = $1", [orderId]);
+      const redisUpdated: Array<{ productId: string; qty: number }> = [];
       for (const item of itemsResult.rows) {
         await client.query(
           "UPDATE products SET stock_quantity = stock_quantity + $1, reserved_quantity = GREATEST(reserved_quantity - $1, 0), updated_at = NOW() WHERE id = $2",
           [item.quantity, item.product_id]
         );
-        await redis.incrby(`inventory:${item.product_id}:available`, item.quantity);
+        try {
+          await redis.incrby(`inventory:${item.product_id}:available`, item.quantity);
+          redisUpdated.push({ productId: item.product_id, qty: item.quantity });
+        } catch (err) {
+          // revert any previously applied Redis increments
+          for (const applied of redisUpdated) {
+            try {
+              await redis.decrby(`inventory:${applied.productId}:available`, applied.qty);
+            } catch (/* swallow */) {
+              // best-effort revert
+            }
+          }
+          await client.query("ROLLBACK");
+          throw err;
+        }
       }
 
       await client.query("UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1", [orderId]);
