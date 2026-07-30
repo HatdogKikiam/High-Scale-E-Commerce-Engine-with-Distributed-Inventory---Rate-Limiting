@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flash-Sale Command Center</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
+      .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+      button { background: #2563eb; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Flash-Sale Command Center</h1>
+    <div class="grid">
+      <div class="card"><h3>Active Stock</h3><div id="stock">--</div></div>
+      <div class="card"><h3>Active Locks</h3><div id="locks">--</div></div>
+      <div class="card"><h3>RPS</h3><div id="rps">--</div></div>
+      <div class="card"><h3>Queue Depth</h3><div id="queue">--</div></div>
+    </div>
+    <div class="row">
+      <button onclick="triggerSale()">Simulate Flash Sale</button>
+      <button onclick="injectFailure()">Inject Payment Failure</button>
+      <button onclick="toggleRedisDrop()">Toggle Redis Drop</button>
+    </div>
+    <script>
+      async function fetchStatus() {
+        const res = await fetch('/status');
+        const data = await res.json();
+        document.getElementById('stock').textContent = data.faultState?.injectLatencyMs ?? 0;
+        document.getElementById('locks').textContent = data.redisHealthy ? 'Healthy' : 'Down';
+        document.getElementById('rps').textContent = 'N/A';
+        document.getElementById('queue').textContent = '0';
+      }
+      async function triggerSale() {
+        await fetch('/admin/faults', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ injectLatencyMs: 500, dropRedis: false, failWebhook: false }) });
+        await fetchStatus();
+      }
+      async function injectFailure() {
+        await fetch('/admin/faults', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ injectLatencyMs: 0, dropRedis: false, failWebhook: true }) });
+        await fetchStatus();
+      }
+      async function toggleRedisDrop() {
+        const res = await fetch('/status');
+        const data = await res.json();
+        await fetch('/admin/faults', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ injectLatencyMs: 0, dropRedis: !data.faultState?.dropRedis, failWebhook: false }) });
+        await fetchStatus();
+      }
+      fetchStatus();
+      setInterval(fetchStatus, 2000);
+    </script>
+  </body>
+</html>
