@@ -23,6 +23,11 @@ export function validateBody(schema: z.ZodSchema) {
       req.body = schema.parse(req.body);
       next();
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        next(new AppError("Invalid request payload", 400, true, error.flatten()));
+        return;
+      }
+
       next(new AppError("Invalid request payload", 400));
     }
   };

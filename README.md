@@ -2,7 +2,7 @@
 
 # ⚡ High-Scale E-Commerce Engine
 
-**A production-oriented Node.js and TypeScript e-commerce platform demonstrating distributed inventory reservation, rate limiting, idempotent webhook processing, and operational resilience under load.**
+A production-oriented Node.js and TypeScript commerce platform that demonstrates distributed inventory reservation, rate limiting, idempotent webhooks, resilient payment flows, and operational observability.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?logo=nodedotjs&logoColor=white)
@@ -17,7 +17,7 @@
 
 ## 📖 Overview
 
-This repository models a high-throughput commerce backend that combines:
+This repository combines:
 
 | Capability | Implementation |
 |---|---|
@@ -26,6 +26,8 @@ This repository models a high-throughput commerce backend that combines:
 | API protection | Sliding-window rate limiting via Redis sorted sets |
 | Payment safety | Idempotent, database-verified webhook processing |
 | Self-healing | BullMQ workers for order expiration and stock restoration |
+| Auth | API-key and Bearer-token support |
+| Commerce workflows | Persistent carts, refunds, outbox events, and catalog search |
 
 ---
 
@@ -52,6 +54,9 @@ This repository models a high-throughput commerce backend that combines:
 - 🚦 **Sliding-window request throttling** — API-level protection
 - 🔁 **Idempotent, Stripe-style webhook processing** — DB-backed verification
 - 🧹 **Background cleanup** for expired pending orders
+- 🛒 **Persistent carts** for checkout workflows
+- 🔄 **Refund and lifecycle support** for commerce operations
+- 📬 **Outbox event storage** for reliable webhook emission
 - 📊 **Metrics, structured logging, Swagger docs**, and containerized dev support
 
 ---
@@ -104,6 +109,9 @@ k6 run k6-stress-test.js
 PORT=3000
 DATABASE_URL=postgresql://ecommerce:ecommerce@127.0.0.1:5432/ecommerce
 REDIS_URL=redis://127.0.0.1:6379
+AUTH_REQUIRED=true
+API_KEYS=demo-key
+OAUTH2_ACCESS_TOKEN=demo-token
 ```
 
 ---
@@ -112,20 +120,19 @@ REDIS_URL=redis://127.0.0.1:6379
 
 ```text
 .
-├── .devcontainer/
-├── .github/workflows/
 ├── docker/
 │   └── init.sql
+├── public/
 ├── src/
 │   ├── app.ts
 │   ├── config/
-│   ├── db/
 │   ├── middleware/
 │   ├── observability/
 │   ├── resilience/
 │   ├── services/
-│   ├── types/
+│   ├── utils/
 │   └── workers/
+├── test/
 ├── docker-compose.yml
 ├── k6-stress-test.js
 ├── package.json

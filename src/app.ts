@@ -22,6 +22,12 @@ import { validateBody, reserveSchema, webhookSchema } from "./middleware/validat
 import { setFaultState, getFaultState, applyFaultInjection } from "./resilience/faultInjection";
 import { getCachedProduct, setCachedProduct } from "./services/cacheService";
 import { redis } from "./config/redis";
+import { requireAuth } from "./middleware/auth";
+import { clearCart, getCart, upsertCartItem } from "./services/cartService";
+import { refundOrder } from "./services/refundService";
+import { searchCatalog } from "./services/searchService";
+import { transitionOrderState } from "./services/orderStateService";
+import { enqueueOutboxEvent } from "./services/outboxService";
 
 interface RequestWithTrace extends Request {
   traceId?: string;
@@ -46,6 +52,7 @@ app.use(helmet());
 app.use(cors({ origin: "*" }));
 app.use(hpp());
 app.use(express.json());
+app.use(requireAuth);
 app.use(metricsMiddleware);
 app.use((req: RequestWithTrace, _res, next) => {
   const traceHeader = req.headers["x-trace-id"];
@@ -130,17 +137,91 @@ app.post("/webhooks/stripe", validateBody(webhookSchema), async (req: RequestWit
 
     logger.info({ traceId: req.traceId, eventId }, "Handling Stripe webhook");
     const result = await processStripeWebhook(eventId, req.body, JSON.stringify(req.body));
+    await enqueueOutboxEvent({
+      id: `${eventId}-${Date.now()}`,
+      aggregateType: "order",
+      aggregateId: (req.body as { data?: { object?: { metadata?: { orderId?: string } } } }).data?.object?.metadata?.orderId ?? "unknown",
+      eventType: "webhook.processed",
+      payload: { eventId, status: result.status }
+    });
     res.status(200).json(result);
   } catch (error) {
     next(error);
   }
 });
 
+app.get("/cart/:userId", async (req, res, next) => {
+  try {
+    res.json(await getCart(req.params.userId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/cart/:userId", async (req, res, next) => {
+  try {
+    const { productId, quantity } = req.body as { productId?: string; quantity?: number };
+    if (!productId || !quantity) {
+      throw new AppError("productId and quantity are required", 400);
+    }
+    res.status(201).json(await upsertCartItem(req.params.userId, productId, quantity));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/cart/:userId", async (req, res, next) => {
+  try {
+    await clearCart(req.params.userId);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/orders/:orderId/transition", async (req, res, next) => {
+  try {
+    const { to } = req.body as { to?: string };
+    const transition = transitionOrderState("pending", to as any);
+    if (!transition.canTransition) {
+      throw new AppError(transition.reason ?? "Invalid order transition", 409);
+    }
+    res.json({ ok: true, transition });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/orders/:orderId/refund", async (req, res, next) => {
+  try {
+    res.json(await refundOrder(req.params.orderId));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/search", async (req, res, next) => {
+  try {
+    const query = typeof req.query.q === "string" ? req.query.q : "";
+    res.json(await searchCatalog(query));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.use((_req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
 app.use((err: unknown, req: RequestWithTrace, res: Response, _next: NextFunction) => {
   logger.error({ traceId: req.traceId, err }, "Unhandled application error");
 
   if (isAppError(err)) {
-    return res.status(err.statusCode).json({ error: err.message });
+    const payload: Record<string, unknown> = { error: err.expose === false ? "Internal server error" : err.message };
+    if (err.details !== undefined) {
+      payload.details = err.details;
+    }
+    return res.status(err.statusCode).json(payload);
   }
 
   if (err instanceof Error) {
