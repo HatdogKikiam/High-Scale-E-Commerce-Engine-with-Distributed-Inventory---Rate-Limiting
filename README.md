@@ -1,85 +1,104 @@
-# High-Scale E-Commerce Engine
+<div align="center">
 
-A production-oriented Node.js and TypeScript e-commerce platform designed to demonstrate distributed inventory reservation, rate limiting, idempotent webhook processing, and operational resilience under load.
+# ⚡ High-Scale E-Commerce Engine
 
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue) ![Node.js](https://img.shields.io/badge/Node.js-22.x-green) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.x-blue) ![Redis](https://img.shields.io/badge/Redis-7.x-red)
+**A production-oriented Node.js and TypeScript e-commerce platform demonstrating distributed inventory reservation, rate limiting, idempotent webhook processing, and operational resilience under load.**
 
-## Overview
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.x-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+
+</div>
+
+---
+
+## 📖 Overview
 
 This repository models a high-throughput commerce backend that combines:
 
-- Redis-backed atomic stock reservation using Lua scripts
-- PostgreSQL transactional consistency for orders and inventory state
-- Sliding-window rate limiting with Redis sorted sets
-- Idempotent webhook processing for external payment events
-- BullMQ background workers for order expiration and inventory restoration
+| Capability | Implementation |
+|---|---|
+| Atomic stock reservation | Redis-backed Lua scripts |
+| Transactional consistency | PostgreSQL for orders and inventory state |
+| API protection | Sliding-window rate limiting via Redis sorted sets |
+| Payment safety | Idempotent, database-verified webhook processing |
+| Self-healing | BullMQ workers for order expiration and stock restoration |
 
-## Architecture
+---
+
+## 🏗️ Architecture
 
 ```text
-Clients / Traffic
-      |
-      v
-Express API Server
-   |        |        |
-   |        |        |
-   v        v        v
-Redis     PostgreSQL   BullMQ Worker
-(Lua lock) (Orders + stock) (Expiration recovery)
+                    Clients / Traffic
+                          |
+                          v
+                  Express API Server
+                 /         |          \
+                v          v           v
+            Redis     PostgreSQL    BullMQ Worker
+          (Lua lock)  (Orders +     (Expiration
+                       stock)        recovery)
 ```
 
-## Core Features
+---
 
-- Distributed inventory reservation with atomic Redis and PostgreSQL coordination
-- Flash-sale-safe stock handling to prevent overselling
-- Sliding-window request throttling for API protection
-- Idempotent Stripe-style webhook processing with database-backed verification
-- Background cleanup for expired pending orders
-- Metrics, structured logging, Swagger docs, and containerized development support
+## ✨ Core Features
 
-## Tech Stack
+- 🔒 **Distributed inventory reservation** — atomic Redis + PostgreSQL coordination
+- 🛡️ **Flash-sale-safe stock handling** — prevents overselling under load
+- 🚦 **Sliding-window request throttling** — API-level protection
+- 🔁 **Idempotent, Stripe-style webhook processing** — DB-backed verification
+- 🧹 **Background cleanup** for expired pending orders
+- 📊 **Metrics, structured logging, Swagger docs**, and containerized dev support
 
-- Node.js 22
-- TypeScript
-- Express
-- PostgreSQL 16
-- Redis 7
-- BullMQ
-- Docker Compose
-- k6 for load testing
+---
 
-## Getting Started
+## 🧰 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 22, TypeScript |
+| API | Express |
+| Database | PostgreSQL 16 |
+| Cache / Locking | Redis 7 |
+| Queues | BullMQ |
+| Infra | Docker Compose |
+| Load Testing | k6 |
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
 - Node.js 22+
 - Docker Desktop or Docker Engine
 
 ### 1. Install dependencies
-
 ```bash
 npm install
 ```
 
 ### 2. Start infrastructure
-
 ```bash
 docker compose up -d
 ```
 
 ### 3. Run the API
-
 ```bash
 npm run dev
 ```
 
 ### 4. Run the load test
-
 ```bash
 k6 run k6-stress-test.js
 ```
 
-## Environment Variables
+---
+
+## ⚙️ Environment Variables
 
 ```bash
 PORT=3000
@@ -87,7 +106,9 @@ DATABASE_URL=postgresql://ecommerce:ecommerce@127.0.0.1:5432/ecommerce
 REDIS_URL=redis://127.0.0.1:6379
 ```
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```text
 .
@@ -112,17 +133,21 @@ REDIS_URL=redis://127.0.0.1:6379
 └── README.md
 ```
 
-## Reliability and Operations
+---
 
-- Structured logging and trace context for request lifecycle visibility
-- Prometheus metrics available at `/metrics`
-- Swagger documentation available at `/docs`
-- Validation and error handling are centralized at the API boundary
-- Worker failures are handled with retry/backoff and dead-letter-style handling
-- Fault-injection controls available at `/status` and `/admin/faults`
-- A local monitoring dashboard is served from `/dashboard.html`
+## 🛡️ Reliability & Operations
 
-## Quick Commands
+- Structured logging and trace context for full request lifecycle visibility
+- Prometheus metrics at **`/metrics`**
+- Swagger documentation at **`/docs`**
+- Centralized validation and error handling at the API boundary
+- Worker retry/backoff with dead-letter-style failure handling
+- Fault-injection controls at **`/status`** and **`/admin/faults`**
+- Local monitoring dashboard served from **`/dashboard.html`**
+
+---
+
+## ⌨️ Quick Commands
 
 ```bash
 make install
@@ -130,8 +155,8 @@ make docker-up
 make dev
 ```
 
-## License
+---
 
-Copyright (c) 2026
+## 📄 License
 
-MIT License
+Copyright (c) 2026 — Released under the **MIT License**.
